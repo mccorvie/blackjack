@@ -8,7 +8,7 @@ cards <- tibble(
   value = c( 1,2,3,4,5,6,7,8,9,10,10,10,10),
   name  = c("A","2","3","4","5","6","7","8","9","10","J","Q","K"),
   soft  = c( T, rep(F,12))
-)
+) 
 #soft = c(T,F),
 
 dealer <- expand_grid( cur_tot = 1:21, final_tot = 17:26, p= NA)  |> 
