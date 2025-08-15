@@ -39,3 +39,5 @@ for( cur_tot_update in 16:1)
 ggplot( dealer, aes(cur_tot, final_tot,fill=log(p+1e-6))) +
   geom_tile()+
   scale_fill_gradient(low="white", high="blue")
+
+
