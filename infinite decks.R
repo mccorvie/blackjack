@@ -258,7 +258,7 @@ ggplot( hit_stand0, aes( upcard, cur_tot, fill=ex)) + geom_tile() + facet_wrap( 
 ## Calculate double edge
 ##
 
-double <- expand_grid( upcard = cards$name, cur_tot = 1:21, soft = c(F,T), cards ) |> 
+double <- expand_grid( upcard = cards$name, cur_tot = 2:21, soft = c(F,T), cards ) |> 
   mutate( double_tot = cur_tot + value, double_soft = soft | csoft ) |> 
   left_join( hit_stand, by=join_by( double_tot == cur_tot, double_soft == soft, upcard )) |> 
   group_by( upcard, cur_tot, soft )|> 
@@ -277,7 +277,7 @@ ggplot( double, aes( upcard, cur_tot, fill=double_ex)) + geom_tile() + facet_wra
 hit_stand_double <- hit_stand |> 
   left_join( double, by = join_by( upcard, cur_tot, soft )) |> 
   mutate( 
-    decision = ifelse( decision== "hit" & double_ex > hit_ex, "double", decision ),
+    decision = ifelse( !is.na( double_ex ) & decision== "hit" & double_ex > hit_ex, "double", decision ),
     w = ifelse( decision == "double", double_w, w ),
     t = ifelse( decision == "double", double_t, t ), 
     l = ifelse( decision == "double", double_l, l ),
@@ -294,14 +294,30 @@ ggplot( hit_stand_double0, aes( upcard, cur_tot, fill=ex)) + geom_tile() + facet
 ##  Calculate split edge
 ##
 
+hit_stand_double_slim <- hit_stand_double |> select( upcard, cur_tot, soft, ex, decision)
 
+split <- expand_grid( upcard = cards$name, cards ) |> 
+  rename( pair = name, split_val = value, soft = csoft ) |> 
+  filter( pair != "J", pair != "Q", pair != "K") |> 
+  expand_grid( cards ) |> 
+  filter( split_val != value ) |> 
+  mutate( post_split_tot = split_val + value, post_split_soft = soft | csoft ) |> 
+  left_join( hit_stand_double_slim, by = join_by( upcard, post_split_soft==soft, post_split_tot==cur_tot)) |> 
+  group_by( upcard, soft, pair, split_val ) |> 
+  summarize( split_ex = mean( ex )*2, .groups="drop" ) |> 
+  mutate( split_ex = ifelse( split_val == 10, 13/(13-4) * split_ex, 13/(13-1) * split_ex )) # handle resplits
 
-pair <- 12
+split <- split |> 
+  mutate( pair_tot = split_val * 2 ) |> 
+  left_join( hit_stand_double_slim, by = join_by( upcard, soft, pair_tot==cur_tot)) |> 
+  mutate( 
+    play_ex = ex,
+    decision = ifelse( split_ex > play_ex, "split", decision ),
+    ex = ifelse( decision == "split", split_ex, play_ex )
+  )
 
-nosplit <- hit_stand |> filter( !soft, cur_tot==pair) |> pull( ex)
-split   <- hit_stand |> filter( !soft, cur_tot==pair/2)  |> pull( ex) |> map_dbl( \(x) x*2)
-
-split > nosplit
+ggplot( split, aes( upcard, pair, fill=decision)) + geom_tile() + scale_fill_brewer(palette = "Set2") 
+ggplot( split, aes( upcard, pair, fill=ex)) + geom_tile()  + scale_fill_distiller(palette = "PRGn")
 
 
 
