@@ -329,3 +329,21 @@ p_bj = (1*4*2)/(13*13)
 p_bj - p_bj*p_bj
 
 
+hand_freq <-cards |> rename( upcard = name, dealer1=value ) |> select( -csoft ) |> 
+  expand_grid( cards, cnt=1 ) |> rename( hole=name, dealer2=value) |> select( -csoft ) |> 
+  expand_grid( cards ) |> rename( name1=name, val1=value, soft1 = csoft ) |>
+  expand_grid( cards ) |> rename( name2=name, val2=value, soft2 = csoft ) |> 
+  filter( dealer1 != 1 | dealer2 != 10, dealer1 != 10 | dealer2 != 1) |> 
+  filter( val1 != 1 | val2 != 10,       val1 != 10 | val2 != 1) |> 
+  mutate( cur_tot = val1 + val2, soft = soft1 | soft2 ) |> 
+  group_by( upcard, cur_tot, soft ) |> 
+  summarize( cnt = sum( cnt ), .groups="drop") |> 
+  mutate( 
+    p = cnt / sum(cnt), 
+    cur_soft_tot = ifelse( soft & cur_tot <=11, cur_tot +10, cur_tot)
+  )
+
+ 
+ ggplot( hand_freq, aes( upcard, cur_soft_tot, fill=p)) + 
+   geom_tile() + facet_wrap( ~soft) + scale_fill_distiller(palette = "Blues", direction=1) + theme_minimal()
+ 
