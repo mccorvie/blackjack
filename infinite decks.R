@@ -314,11 +314,8 @@ ggplot( split, aes( upcard, pair, fill=ex)) + geom_tile()  + scale_fill_distille
 
 
 ##
-##  Initial blackjack calculations
+##  Overall game expectations
 ##
-
-p_bj = (1*4*2)/(13*13)
-p_bj - p_bj*p_bj
 
 
 hand_freq <-cards |> rename( upcard = name, dealer1=value ) |> select( -csoft ) |> 
@@ -327,8 +324,8 @@ hand_freq <-cards |> rename( upcard = name, dealer1=value ) |> select( -csoft ) 
   expand_grid( cards ) |> rename( name2=name, val2=value, soft2 = csoft ) |> 
   filter( dealer1 != 1 | dealer2 != 10, dealer1 != 10 | dealer2 != 1) |> 
   filter( val1 != 1 | val2 != 10,       val1 != 10 | val2 != 1) |> 
-  mutate( cur_tot = val1 + val2, soft = soft1 | soft2 ) |> 
-  group_by( upcard, cur_tot, soft ) |> 
+  mutate( cur_tot = val1 + val2, soft = soft1 | soft2, pair = val1 == val2 ) |> 
+  group_by( upcard, cur_tot, soft, pair ) |> 
   summarize( cnt = sum( cnt ), .groups="drop") |> 
   mutate( 
     p = cnt / sum(cnt), 
@@ -337,5 +334,28 @@ hand_freq <-cards |> rename( upcard = name, dealer1=value ) |> select( -csoft ) 
 
  
  ggplot( hand_freq, aes( upcard, cur_soft_tot, fill=p)) + 
-   geom_tile() + facet_wrap( ~soft) + scale_fill_distiller(palette = "Blues", direction=1) + theme_minimal()
+   geom_tile() + facet_wrap( pair~soft) + scale_fill_distiller(palette = "Blues", direction=1) + theme_minimal()
  
+#
+# initial blackjack probabilities 
+#
+ 
+p_bj = (1*4*2)/(13*13)
+p_bj1 = p_bj * (1- p_bj) # solo BJ, only dealer or only player
+p_no_bj = (1-p_bj)^2
+
+bj_factor = 3/2
+bj_ex = (bj_factor-1) * p_bj1 
+
+split_slim <- split |> select( upcard, soft, cur_tot = pair_tot, ex) |> mutate( pair = T)
+
+expectation_table <- hand_freq |>
+  left_join( mutate( hit_stand_double_slim, pair = F), by = join_by( upcard, pair, soft, cur_tot)) |> 
+  left_join( rename( split_slim, ex2  = ex), by =  join_by( upcard, pair, soft, cur_tot)) |> 
+  mutate( ex = coalesce(ex, ex2)) |> 
+  select( -ex2) 
+
+ex_play <- expectation_table |> summarize( ex = sum( ex*p)) |> pull( ex)
+
+ex <- p_no_bj * ex_play + bj_ex
+ex
