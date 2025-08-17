@@ -128,14 +128,6 @@ upcard_playable <- dealer_hands |>
   mutate( final_soft_tot = ifelse( final_soft & final_tot <= 11, final_tot+10, final_tot )) 
 
 
-
-##
-##
-##
-
-
-
-
 # There is a choice here: upcard or upcard playable?  
 
 dealer_outcomes <- upcard_playable |> 
